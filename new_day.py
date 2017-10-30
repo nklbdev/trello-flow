@@ -21,7 +21,7 @@ def get_list_cards(list_id):
 
 
 def move_to_list(card_id, list_id):
-    requests.put("%s/cards/%s" % (api_url, card_id), {"idList": list_id, **auth_params}).json()
+    requests.put("%s/cards/%s" % (api_url, card_id), {"idList": list_id, **auth_params})
 
 
 # other
