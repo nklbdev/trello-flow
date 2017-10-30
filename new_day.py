@@ -10,6 +10,7 @@ auth_params = {
 
 inbox_list_id = "..."
 to_do_list_id = "..."
+in_progress_list_id = "..."
 done_list_id = "..."
 history_list_id = "..."
 
@@ -75,6 +76,9 @@ def main():
     # flush Done
     for card in get_list_cards(done_list_id):
         move_to_list(card["id"], inbox_list_id if is_repetitive(card) else history_list_id)
+    # return In Progress to To Do
+    for card in get_list_cards(in_progress_list_id):
+        move_to_list(card["id"], to_do_list_id)
     # activate cards
     for card in get_list_cards(inbox_list_id):
         if is_expiring(card, today) or is_repeating(card, today):
