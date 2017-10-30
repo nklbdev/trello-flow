@@ -62,9 +62,7 @@ def contains(period, value):
 
 
 def is_date_match(tab: str, d):
-    return all([any([contains(period, value)
-                     for period
-                     in periods])
+    return all([any([contains(period, value) for period in periods])
                 for periods, value
                 in zip([parse_periods(i) for i in tab.split(" ")],
                        [d.day, d.month, d.weekday() + 1, d.year])])
