@@ -1,4 +1,7 @@
+import re
+from collections import namedtuple
 from datetime import date, datetime
+from typing import Dict, List, Optional
 
 import requests
 
@@ -17,56 +20,62 @@ history_list_id = "..."
 
 # working with api
 
-def get_list_cards(list_id):
+def get_list_cards(list_id: str) -> Dict:
     return requests.get("%s/lists/%s/cards" % (api_url, list_id), auth_params).json()
 
 
-def move_to_list(card_id, list_id):
+def move_to_list(card_id: str, list_id: str) -> None:
     requests.put("%s/cards/%s" % (api_url, card_id), {"idList": list_id, **auth_params})
 
 
 # other
 
-def is_repetitive(card):
-    first_line = [*card["desc"].split("\n", 1), None][0]
-    return first_line.startswith("repeat ")
+tab_pattern = re.compile("\[(?P<dom>#|\d{1,2}(-d{1,2})?(,\d{1,2}(-d{1,2})?)*) "
+                         "(?P<mon>#|\d{1,2}(-d{1,2})?(,\d{1,2}(-d{1,2})?)*) "
+                         "(?P<dow>#|\d(-d)?(,\d(-d)?)*) "
+                         "(?P<yr>#|\d{4}(-d{4})?(,\d{4}(-d{4})?)*)]")
 
 
-def is_repeating(card, d):
-    first_line = [*card["desc"].split("\n", 1), None][0]
-    if not first_line.startswith("repeat "):
+def is_repetitive(card: Dict) -> bool:
+    return re.search(tab_pattern, card["name"]) is not None
+
+
+def is_repeating(card: Dict, d: date) -> bool:
+    match = re.search(tab_pattern, card["name"])
+    if not match:
         return False
-    tab = first_line[7:]
-    return is_date_match(tab, d)
+    groups = match.groupdict()
+    return all([any([contains(period, value) for period in periods])
+                for periods, value
+                in zip([parse_periods(psstr)
+                        for psstr
+                        in [groups["dom"], groups["mon"], groups["dow"], groups["yr"]]],
+                       [d.day, d.month, d.weekday() + 1, d.year])])
 
 
-def is_expiring(card, d):
+def is_expiring(card: Dict, d: date) -> bool:
     due = card["due"]
     return datetime.strptime(due[0:10], "%Y-%m-%d").date() == d if due else False
 
 
 # util
 
-def parse_period(pstr: str):
+Period = namedtuple("Period", ["lower", "upper"])
+
+
+def parse_period(pstr: str) -> Optional[Period]:
     if pstr == "#":
         return None
     parts = pstr.split("-")
-    return int(parts[0]), int(parts[-1])
+    return Period(int(parts[0]), int(parts[-1]))
 
 
-def parse_periods(psstr: str):
+def parse_periods(psstr: str) -> List[Period]:
     return [parse_period(pstr) for pstr in psstr.split(",")]
 
 
-def contains(period, value):
+def contains(period: Period, value: int) -> bool:
     return not period or period[0] <= value <= period[1]
-
-
-def is_date_match(tab: str, d):
-    return all([any([contains(period, value) for period in periods])
-                for periods, value
-                in zip([parse_periods(i) for i in tab.split(" ")],
-                       [d.day, d.month, d.weekday() + 1, d.year])])
 
 
 # main
